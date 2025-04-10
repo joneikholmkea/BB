@@ -76,7 +76,7 @@ function GameComponent(){
           backgroundColor: 'green',
           position: 'absolute',
           left: position.x,
-          top: height - 20,
+          top: height - 36,
           width: size,
           height: size/5,
           borderRadius: size / 2
@@ -92,8 +92,15 @@ function GameComponent(){
   function update(entities, { time }){
       const ballEntity = entities.ball
       const batEntity = entities.bat
-      ballEntity.position.x += ballEntity.velocity.x * time.delta
-      ballEntity.position.y += ballEntity.velocity.y * time.delta
+
+      let extra = 0
+      if(motionData){
+        extra = 5.0 * motionData.rotation.beta / 1.5
+      }
+      if(isNaN(extra)){ extra = 0}
+
+      ballEntity.position.x += ballEntity.velocity.x * time.delta * (1 + extra)
+      ballEntity.position.y += ballEntity.velocity.y * time.delta * (1 + extra)
     // højre side
       if(ballEntity.position.x + ballEntity.size > width){
         ballEntity.velocity.x = -1 * Math.abs(ballEntity.velocity.x)
@@ -102,13 +109,14 @@ function GameComponent(){
       if(ballEntity.position.x < 0){
         ballEntity.velocity.x = Math.abs(ballEntity.velocity.x)
       }
-      // bund
-      if(ballEntity.position.y + ballEntity.size > height){
-        ballEntity.velocity.y = -1 * Math.abs(ballEntity.velocity.y)
-      }
        // top
        if(ballEntity.position.y < 0){
         ballEntity.velocity.y = Math.abs(ballEntity.velocity.y)
+      }
+
+      // bund
+      if(ballEntity.position.y + ballEntity.size > height){
+        ballEntity.velocity.y = -1 * Math.abs(ballEntity.velocity.y)
       }
 
       // flyt bat
@@ -120,7 +128,7 @@ function GameComponent(){
         batEntity.position.x = newPos
       }
 
-      return entities
+      return entities  // få bat til at fungere, så bolden falder igennem hvis ikke man rammer
   }
 
   return (
