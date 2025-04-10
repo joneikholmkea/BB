@@ -4,14 +4,20 @@ import { StyleSheet, Text, View, Dimensions } from 'react-native';
 import { GameEngine} from 'react-native-game-engine'
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { DeviceMotion } from 'expo-sensors';
+import { Audio} from 'expo-av'
 
 function GameComponent(){
   const [running, setRunning] = useState(true)
   const [motionData, setMotionData] = useState(null)
   const [isMotionAvailable, setIsMotionAvailable] = useState(false)
+  const [sound, setSound] = useState(null)
   const insets = useSafeAreaInsets()
   const {width, height} =  Dimensions.get('window')
   
+  useEffect(()=>{
+    return sound ? ()=>{ sound.unloadAsync()} : undefined
+  }, [sound])
+
   useEffect(()=>{
     async function subscribe() {
       const available = await DeviceMotion.isAvailableAsync()
@@ -86,8 +92,49 @@ function GameComponent(){
       )
     }
   }
-// Opgave: få bolden til at bounce på bat, ellers falde ned og spillet stopper.
 
+  async function startAudioRecording() {
+  
+      try {
+          const permission = await Audio.requestPermissionsAsync()
+          if(permission.status==='granted'){
+            
+            await Audio.setAudioModeAsync({
+              allowsRecordingIOS:true,
+              playsInSilentModeIOS:true
+            })
+            const newRecording = new Audio.Recording()
+            await newRecording.prepareToRecordAsync(Audio.RECORDING_OPTIONS_PRESET_HIGH_QUALITY)
+            await newRecording.startAsync()
+
+            setTimeout(async () => {
+              if(newRecording){
+                console.log("L110 audio")
+                await newRecording.stopAndUnloadAsync()
+                await Audio.setAudioModeAsync({
+                  allowsRecordingIOS:true,
+                  playsInSilentModeIOS:true
+                })
+                const uri = newRecording.getURI()
+                playAudio(uri)
+              }
+            }, 2000);
+          }else{
+            console.log("audio not granted")
+          }
+      } catch (error) {
+          console.log("audio error " , error)
+      }
+  }
+
+  async function playAudio(uri) {
+    console.log("L131 audio playing")
+    const { sound } = await Audio.Sound.createAsync(
+      {uri},
+      {shouldPlay:true}
+    )
+    setSound(sound)
+  }
 
   function update(entities, { time }){
       const ballEntity = entities.ball
@@ -116,7 +163,14 @@ function GameComponent(){
 
       // bund
       if(ballEntity.position.y + ballEntity.size > height){
-        ballEntity.velocity.y = -1 * Math.abs(ballEntity.velocity.y)
+        if(ballEntity.position.x > batEntity.position.x 
+          && ballEntity.position.x < ballEntity.position.x + batEntity.size){
+            ballEntity.velocity.y = -1 * Math.abs(ballEntity.velocity.y)
+          }else {
+            startAudioRecording()
+            setRunning(false)
+          }
+        
       }
 
       // flyt bat
